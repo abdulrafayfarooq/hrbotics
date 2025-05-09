@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import HRboticsLogo from '@/components/HRboticsLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -25,6 +26,13 @@ const Home = () => {
       navigate('/login');
     }
   };
+
+  const datasetFiles = [
+    { name: 'facial_expressions.json', description: 'Facial emotion markers' },
+    { name: 'voice_sentiment.json', description: 'Voice tone analysis' },
+    { name: 'interview_questions.csv', description: 'Common interview questions' },
+    { name: 'feedback_templates.json', description: 'Feedback generation templates' }
+  ];
 
   return (
     <div className="min-h-screen flex flex-col grid-pattern-bg">
@@ -147,23 +155,15 @@ const Home = () => {
               <p className="text-muted-foreground mb-4">
                 Our models are trained using structured data files that include:
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="font-medium">facial_expressions.json</p>
-                  <p className="text-sm text-muted-foreground">Facial emotion markers</p>
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="font-medium">voice_sentiment.json</p>
-                  <p className="text-sm text-muted-foreground">Voice tone analysis</p>
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="font-medium">interview_questions.csv</p>
-                  <p className="text-sm text-muted-foreground">Common interview questions</p>
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="font-medium">feedback_templates.json</p>
-                  <p className="text-sm text-muted-foreground">Feedback generation templates</p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {datasetFiles.map((file, index) => (
+                  <Card key={index} className="bg-muted">
+                    <CardContent className="p-3">
+                      <p className="font-medium">{file.name}</p>
+                      <p className="text-sm text-muted-foreground">{file.description}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
           </div>
