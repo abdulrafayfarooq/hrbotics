@@ -1,9 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useToast } from "@/components/ui/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { FileText, Download, Share, FileChartLine } from 'lucide-react';
+import { generatePDF, FeedbackReport } from '@/utils/pdfGenerator';
 
 interface EmotionData {
   face: string;
@@ -36,12 +39,29 @@ const emotionScores = {
 
 const Results = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [results, setResults] = useState<EmotionResults | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [emotionCounts, setEmotionCounts] = useState<any[]>([]);
+  const [interviewMode, setInterviewMode] = useState<string>("general");
+  const [interviewModeName, setInterviewModeName] = useState<string>("General Interview");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  
+  const reportRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const storedResults = localStorage.getItem('virtualhr_interview_results');
+    const storedMode = localStorage.getItem('virtualhr_interview_mode');
+    const storedModeName = localStorage.getItem('virtualhr_interview_mode_name');
+    
+    if (storedMode) {
+      setInterviewMode(storedMode);
+    }
+    
+    if (storedModeName) {
+      setInterviewModeName(storedModeName);
+    }
     
     if (storedResults) {
       try {
@@ -100,8 +120,9 @@ const Results = () => {
     const confidentCount = voiceEmotions.filter(e => e === 'confident').length;
     const hesitantCount = voiceEmotions.filter(e => e === 'hesitant').length;
     const neutralCount = faceEmotions.filter(e => e === 'neutral').length;
+    const thinkingCount = faceEmotions.filter(e => e === 'thinking').length;
     
-    // Generate feedback based on counts
+    // Generate feedback based on counts and mode
     if (happyCount > faceEmotions.length / 3) {
       feedback.push({
         type: 'positive',
@@ -130,18 +151,130 @@ const Results = () => {
       });
     }
     
-    // Add general tips
-    feedback.push({
-      type: 'tip',
-      text: 'Remember to maintain eye contact with the interviewer (or camera) to demonstrate engagement.'
-    });
+    // Mode-specific feedback
+    switch(interviewMode) {
+      case 'technical':
+        if (thinkingCount > faceEmotions.length / 4) {
+          feedback.push({
+            type: 'positive',
+            text: 'You showed thoughtful consideration before answering technical questions, which is great for technical interviews.'
+          });
+        }
+        feedback.push({
+          type: 'tip',
+          text: 'In technical interviews, it\'s good to explain your thought process as you work through problems.'
+        });
+        break;
+      
+      case 'hr':
+        if (happyCount < faceEmotions.length / 4) {
+          feedback.push({
+            type: 'improvement',
+            text: 'HR interviews focus on cultural fit. Try to show more warmth and enthusiasm.'
+          });
+        }
+        feedback.push({
+          type: 'tip',
+          text: 'Use the STAR method (Situation, Task, Action, Result) when answering behavioral questions in HR interviews.'
+        });
+        break;
+        
+      case 'leadership':
+        feedback.push({
+          type: 'tip',
+          text: 'Leadership interviews assess your ability to influence and inspire. Share concrete examples of how you've led teams.'
+        });
+        if (confidentCount < voiceEmotions.length / 3) {
+          feedback.push({
+            type: 'improvement',
+            text: 'Leadership roles require confidence. Work on maintaining a confident tone throughout the interview.'
+          });
+        }
+        break;
+        
+      default:
+        // Add general tips
+        feedback.push({
+          type: 'tip',
+          text: 'Remember to maintain eye contact with the interviewer (or camera) to demonstrate engagement.'
+        });
+    }
     
+    // Add general tips
     feedback.push({
       type: 'tip',
       text: 'Vary your tone and pace to keep the interviewer engaged and emphasize key points.'
     });
     
     return feedback;
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current || !results) return;
+    
+    try {
+      setGeneratingPdf(true);
+      
+      const feedback = generateFeedback();
+      const overallScore = Math.floor(chartData.reduce((sum, item) => sum + item.voiceScore + item.faceScore, 0) / (chartData.length * 2) * 20);
+      
+      const reportData: FeedbackReport = {
+        timestamp: new Date().toLocaleString(),
+        overallScore,
+        emotionData: chartData,
+        feedback,
+        interviewMode: interviewModeName
+      };
+      
+      const pdfBlobUrl = await generatePDF(reportRef, reportData);
+      setPdfUrl(pdfBlobUrl);
+      
+      // Auto-download the PDF
+      const link = document.createElement('a');
+      link.href = pdfBlobUrl;
+      link.download = `hrbotics-interview-report-${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "PDF Generated Successfully",
+        description: "Your interview report has been downloaded.",
+      });
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Failed to generate PDF",
+        description: "An error occurred while generating your report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleShareResults = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'My HRbotics Interview Results',
+        text: `I just practiced a ${interviewModeName} with HRbotics! Check out this AI interview assistant.`,
+        url: window.location.href
+      }).then(() => {
+        toast({
+          title: "Shared Successfully",
+          description: "Your results have been shared.",
+        });
+      }).catch(console.error);
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        toast({
+          title: "Link Copied",
+          description: "Results link copied to clipboard.",
+        });
+      }).catch(console.error);
+    }
   };
 
   if (!results) {
@@ -161,10 +294,33 @@ const Results = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Interview Results</h1>
-        <p className="text-gray-600 mt-2">Analysis of your facial expressions and voice tone</p>
+    <div ref={reportRef} className="container mx-auto py-8 px-4 animate-fade-in">
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Interview Results</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            Analysis of your {interviewModeName.toLowerCase()} performance
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={handleShareResults}
+          >
+            <Share size={16} />
+            Share
+          </Button>
+          <Button 
+            variant="default" 
+            className="bg-virtualhr-purple hover:bg-virtualhr-purple-dark flex items-center gap-2"
+            onClick={handleDownloadPDF}
+            disabled={generatingPdf}
+          >
+            <Download size={16} />
+            {generatingPdf ? 'Generating...' : 'Download Report'}
+          </Button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -221,7 +377,13 @@ const Results = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Feedback</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-virtualhr-purple" />
+                  Feedback 
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({interviewModeName})
+                  </span>
+                </CardTitle>
                 <CardDescription>Personalized recommendations</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -230,10 +392,10 @@ const Results = () => {
                     key={index}
                     className={`p-3 rounded-md ${
                       item.type === 'positive' 
-                        ? 'bg-green-50 border-l-4 border-green-500' 
+                        ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' 
                         : item.type === 'improvement'
-                        ? 'bg-amber-50 border-l-4 border-amber-500'
-                        : 'bg-blue-50 border-l-4 border-blue-500'
+                        ? 'bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
                     }`}
                   >
                     <p className="text-sm">{item.text}</p>
@@ -248,7 +410,7 @@ const Results = () => {
                 <CardDescription>Continue improving your skills</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Regular practice is the key to interview success. Try recording another interview
                   with different questions to build your confidence.
                 </p>
@@ -307,7 +469,10 @@ const Results = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Key Metrics</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileChartLine className="h-5 w-5 text-virtualhr-purple" />
+                Key Metrics
+              </CardTitle>
               <CardDescription>Your performance at a glance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -317,7 +482,7 @@ const Results = () => {
                   {Math.floor(chartData.reduce((sum, item) => sum + item.voiceScore, 0) / chartData.length * 20)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                 <div 
                   className="bg-virtualhr-purple h-2.5 rounded-full" 
                   style={{ width: `${Math.floor(chartData.reduce((sum, item) => sum + item.voiceScore, 0) / chartData.length * 20)}%` }}
@@ -330,7 +495,7 @@ const Results = () => {
                   {Math.floor(chartData.filter(item => ['happy', 'confident'].includes(item.faceEmotion)).length / chartData.length * 100)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                 <div 
                   className="bg-virtualhr-blue-bright h-2.5 rounded-full" 
                   style={{ width: `${Math.floor(chartData.filter(item => ['happy', 'confident'].includes(item.faceEmotion)).length / chartData.length * 100)}%` }}
@@ -341,7 +506,7 @@ const Results = () => {
                 <span className="text-sm font-medium">Voice Clarity</span>
                 <span className="text-sm font-medium text-green-600">78%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                 <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '78%' }}></div>
               </div>
             </CardContent>
