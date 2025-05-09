@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Home, Video, FileText, LogOut, Menu } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import HRboticsLogo from '@/components/HRboticsLogo';
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
@@ -26,22 +28,26 @@ const AppLayout = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-40 h-screen transition-all duration-300 ease-in-out bg-white shadow-lg",
+          "fixed top-0 left-0 z-40 h-screen transition-all duration-300 ease-in-out bg-sidebar border-r border-sidebar-border",
           sidebarOpen ? "w-64" : "w-16"
         )}
       >
         <div className="flex h-full flex-col py-6">
           <div className="flex items-center justify-between px-4 mb-6">
-            {sidebarOpen && (
+            {sidebarOpen ? (
               <div className="animate-fade-in">
-                <h2 className="text-xl font-semibold text-virtualhr-purple">VirtualHR</h2>
+                <HRboticsLogo size="md" />
+              </div>
+            ) : (
+              <div className="mx-auto">
+                <HRboticsLogo size="sm" variant="icon" />
               </div>
             )}
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="text-gray-500 hover:bg-virtualhr-purple-soft hover:text-virtualhr-purple"
+              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-virtualhr-purple"
             >
               <Menu size={20} />
             </Button>
@@ -56,7 +62,7 @@ const AppLayout = () => {
                   "flex items-center py-3 px-3 mb-1 rounded-lg transition-all",
                   isActive
                     ? "bg-virtualhr-purple text-white"
-                    : "text-gray-700 hover:bg-virtualhr-purple-soft hover:text-virtualhr-purple",
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-virtualhr-purple",
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -74,6 +80,7 @@ const AppLayout = () => {
                 <div className="text-sm text-gray-500">{user?.email}</div>
               </div>
             )}
+            <ThemeToggle />
             <Button
               variant="ghost"
               onClick={logout}

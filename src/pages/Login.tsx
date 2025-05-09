@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import HRboticsLogo from '@/components/HRboticsLogo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -52,17 +54,22 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 grid-pattern-bg">
-      <Button 
-        variant="ghost" 
-        onClick={() => navigate('/')}
-        className="absolute top-4 left-4 hover:bg-virtualhr-purple-soft hover:text-virtualhr-purple"
-      >
-        Back to Home
-      </Button>
+      <div className="absolute top-4 left-4 flex items-center gap-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/')}
+          className="hover:bg-virtualhr-purple-soft hover:text-virtualhr-purple"
+        >
+          Back to Home
+        </Button>
+        <ThemeToggle />
+      </div>
 
-      <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm animate-scale-in">
+      <Card className="w-full max-w-md bg-card/90 backdrop-blur-sm animate-scale-in border border-border">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-virtualhr-purple">VirtualHR</CardTitle>
+          <div className="flex justify-center mb-2">
+            <HRboticsLogo size="lg" />
+          </div>
           <CardDescription className="text-center">Log in or create an account to get started</CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,7 +107,7 @@ const Login = () => {
                 </Button>
               </form>
               <div className="mt-4 text-center text-sm">
-                <span className="text-gray-500">
+                <span className="text-muted-foreground">
                   Don't have an account?{" "}
                   <button 
                     type="button"
@@ -150,7 +157,7 @@ const Login = () => {
                 </Button>
               </form>
               <div className="mt-4 text-center text-sm">
-                <span className="text-gray-500">
+                <span className="text-muted-foreground">
                   Already have an account?{" "}
                   <button 
                     type="button"
@@ -165,7 +172,7 @@ const Login = () => {
           </Tabs>
         </CardContent>
         <CardFooter className="flex flex-col">
-          <div className="text-xs text-center text-gray-500 mt-4">
+          <div className="text-xs text-center text-muted-foreground mt-4">
             By signing in, you agree to our Terms of Service and Privacy Policy
           </div>
         </CardFooter>
