@@ -9,9 +9,17 @@ export interface FeedbackReport {
   interviewMode: string;
 }
 
+export interface ResumeAnalysis {
+  name?: string;
+  skills: string[];
+  strengths: string[];
+  improvements: string[];
+  filename: string;
+}
+
 export const generatePDF = async (
   reportRef: React.RefObject<HTMLDivElement>, 
-  report: FeedbackReport
+  report: FeedbackReport | ResumeAnalysis
 ): Promise<string> => {
   if (!reportRef.current) {
     throw new Error('Report element not found');
@@ -35,4 +43,13 @@ export const generatePDF = async (
     console.error('Error generating PDF:', error);
     throw error;
   }
+};
+
+export const downloadReport = (dataUrl: string, filename: string): void => {
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

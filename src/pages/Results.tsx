@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileText, Download, Share, FileChartLine } from 'lucide-react';
-import { generatePDF, FeedbackReport } from '@/utils/pdfGenerator';
+import { generatePDF, downloadReport, FeedbackReport } from '@/utils/pdfGenerator';
 
 interface EmotionData {
   face: string;
@@ -45,7 +44,6 @@ const Results = () => {
   const [emotionCounts, setEmotionCounts] = useState<any[]>([]);
   const [interviewMode, setInterviewMode] = useState<string>("general");
   const [interviewModeName, setInterviewModeName] = useState<string>("General Interview");
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   
   const reportRef = useRef<HTMLDivElement>(null);
@@ -227,15 +225,7 @@ const Results = () => {
       };
       
       const pdfBlobUrl = await generatePDF(reportRef, reportData);
-      setPdfUrl(pdfBlobUrl);
-      
-      // Auto-download the PDF
-      const link = document.createElement('a');
-      link.href = pdfBlobUrl;
-      link.download = `hrbotics-interview-report-${Date.now()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadReport(pdfBlobUrl, `hrbotics-interview-report-${Date.now()}.png`);
       
       toast({
         title: "PDF Generated Successfully",

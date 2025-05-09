@@ -1,9 +1,9 @@
-
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from "@/components/ui/use-toast";
-import { FileText, Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Upload, X, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import { generatePDF, downloadReport, ResumeAnalysis } from '@/utils/pdfGenerator';
 
 const Resume = () => {
   const { toast } = useToast();
@@ -11,7 +11,9 @@ const Resume = () => {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resumeReportRef = useRef<HTMLDivElement>(null);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -62,11 +64,43 @@ const Resume = () => {
     }
   };
   
+  const handleDownloadAnalysis = async () => {
+    if (!resumeReportRef.current) return;
+    
+    try {
+      setGeneratingPdf(true);
+      
+      const analysisData: ResumeAnalysis = {
+        skills: ["JavaScript", "React", "Technical Communication"],
+        strengths: ["Strong Technical Skills", "Clear Work History"],
+        improvements: ["Add more quantifiable achievements"],
+        filename: file?.name || "resume"
+      };
+      
+      const pdfUrl = await generatePDF(resumeReportRef, analysisData);
+      downloadReport(pdfUrl, `hrbotics-resume-analysis-${Date.now()}.png`);
+      
+      toast({
+        title: "Analysis Downloaded",
+        description: "Your resume analysis has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Download Failed",
+        description: "An error occurred while generating your analysis. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+  
   return (
     <div className="container mx-auto py-8 px-4 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Resume Analysis</h1>
-        <p className="text-gray-600 mt-2">Upload your resume for personalized interview insights</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Resume Analysis</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Upload your resume for personalized interview insights</p>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -86,10 +120,10 @@ const Resume = () => {
                 >
                   <div className="flex flex-col items-center">
                     <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Click to upload or drag and drop
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       PDF, DOC, or DOCX (Max 10MB)
                     </p>
                   </div>
@@ -102,15 +136,15 @@ const Resume = () => {
                   />
                 </div>
               ) : (
-                <div className="bg-gray-50 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="bg-virtualhr-purple/10 p-2 rounded mr-3">
                         <FileText className="h-6 w-6 text-virtualhr-purple" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{file.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{file.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {(file.size / (1024 * 1024)).toFixed(2)} MB
                         </p>
                       </div>
@@ -146,9 +180,20 @@ const Resume = () => {
                         </div>
                       </Button>
                     ) : (
-                      <div className="flex items-center bg-green-50 text-green-700 p-2 rounded">
-                        <CheckCircle className="h-5 w-5 mr-2" />
-                        <span className="text-sm font-medium">Analysis Complete</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 p-2 rounded">
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          <span className="text-sm font-medium">Analysis Complete</span>
+                        </div>
+                        <Button 
+                          variant="outline"
+                          className="flex items-center gap-2"
+                          onClick={handleDownloadAnalysis}
+                          disabled={generatingPdf}
+                        >
+                          <Download size={16} />
+                          {generatingPdf ? "Generating..." : "Download"}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -158,45 +203,47 @@ const Resume = () => {
           </Card>
           
           {analyzed && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Key Insights</CardTitle>
-                <CardDescription>
-                  What we found in your resume
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start">
-                  <div className="bg-green-50 p-2 rounded mr-3">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+            <div ref={resumeReportRef}>
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Key Insights</CardTitle>
+                  <CardDescription>
+                    What we found in your resume
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start">
+                    <div className="bg-green-50 dark:bg-green-900/30 p-2 rounded mr-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium dark:text-gray-200">Strong Technical Skills</h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Your technical skills are well presented and relevant for today's market.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium">Strong Technical Skills</h4>
-                    <p className="text-xs text-gray-600 mt-1">Your technical skills are well presented and relevant for today's market.</p>
+                  
+                  <div className="flex items-start">
+                    <div className="bg-amber-50 dark:bg-amber-900/30 p-2 rounded mr-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium dark:text-gray-200">Improve Quantifiable Achievements</h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Consider adding more measurable results and achievements to strengthen your experience section.</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-amber-50 p-2 rounded mr-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                  
+                  <div className="flex items-start">
+                    <div className="bg-green-50 dark:bg-green-900/30 p-2 rounded mr-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium dark:text-gray-200">Clear Work History</h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Your career progression is easy to follow and well-structured.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium">Improve Quantifiable Achievements</h4>
-                    <p className="text-xs text-gray-600 mt-1">Consider adding more measurable results and achievements to strengthen your experience section.</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-green-50 p-2 rounded mr-3">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium">Clear Work History</h4>
-                    <p className="text-xs text-gray-600 mt-1">Your career progression is easy to follow and well-structured.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
         
@@ -220,8 +267,8 @@ const Resume = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">Tailored Practice Questions</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-200">Tailored Practice Questions</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     We'll generate interview questions specific to your job history and career path.
                   </p>
                 </div>
@@ -234,16 +281,16 @@ const Resume = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">Skills Gap Analysis</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-200">Skills Gap Analysis</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Identify potential skill gaps and get suggestions for improvement before your interview.
                   </p>
                 </div>
               </div>
               
               <div className="flex items-start">
-                <div className="bg-gray-100 p-3 rounded-full mr-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700">
+                <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-full mr-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-gray-300">
                     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" x2="8" y1="13" y2="13"></line>
@@ -252,16 +299,16 @@ const Resume = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">Resume Enhancement Tips</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-200">Resume Enhancement Tips</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Get suggestions on how to improve your resume to stand out to recruiters and ATS systems.
                   </p>
                 </div>
               </div>
             </CardContent>
             
-            <CardFooter className="bg-gray-50 border-t p-4">
-              <div className="text-sm text-gray-600">
+            <CardFooter className="bg-gray-50 dark:bg-gray-800 border-t p-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 <p className="font-medium mb-1">Your privacy is important</p>
                 <p>We use advanced encryption to protect your resume data. Your information is never shared with third parties.</p>
               </div>
