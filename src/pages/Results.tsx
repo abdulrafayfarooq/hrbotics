@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileText, Download, Share, FileChartLine } from 'lucide-react';
 import { generatePDF, FeedbackReport } from '@/utils/pdfGenerator';
@@ -182,7 +182,7 @@ const Results = () => {
       case 'leadership':
         feedback.push({
           type: 'tip',
-          text: 'Leadership interviews assess your ability to influence and inspire. Share concrete examples of how you've led teams.'
+          text: "Leadership interviews assess your ability to influence and inspire. Share concrete examples of how you've led teams."
         });
         if (confidentCount < voiceEmotions.length / 3) {
           feedback.push({
