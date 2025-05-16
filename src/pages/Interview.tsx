@@ -61,10 +61,12 @@ const Interview = () => {
   const [progress, setProgress] = useState(0);
   const [selectedMode, setSelectedMode] = useState<InterviewMode>(interviewModes[0]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     // Set a random question from the selected mode when component mounts or mode changes
@@ -74,48 +76,33 @@ const Interview = () => {
     }
   }, [selectedMode]);
 
-  const startRecording = async () => {
+  // Clean up function to stop all media tracks when component unmounts
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+  
+  const initializeCamera = async () => {
     try {
+      // If we already have a stream, stop all tracks first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
       
       // Show live video feed
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
+        setCameraActive(true);
       }
       
-      // Set up recording
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        const videoURL = URL.createObjectURL(blob);
-        setRecordedVideo(videoURL);
-        
-        // Stop all tracks of the stream
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Remove the stream from video element
-        if (videoRef.current) {
-          videoRef.current.srcObject = null;
-        }
-      };
-      
-      mediaRecorder.start();
-      setIsRecording(true);
-      
-      toast({
-        title: "Recording started",
-        description: "Speak clearly and maintain eye contact with the camera.",
-      });
+      return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
       toast({
@@ -123,7 +110,40 @@ const Interview = () => {
         description: "Please allow access to your camera and microphone to use this feature.",
         variant: "destructive",
       });
+      return null;
     }
+  };
+
+  const startRecording = async () => {
+    // Initialize camera if not already done
+    const stream = streamRef.current || await initializeCamera();
+    
+    if (!stream) return;
+    
+    // Set up recording
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = mediaRecorder;
+    chunksRef.current = [];
+    
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunksRef.current.push(event.data);
+      }
+    };
+    
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const videoURL = URL.createObjectURL(blob);
+      setRecordedVideo(videoURL);
+    };
+    
+    mediaRecorder.start();
+    setIsRecording(true);
+    
+    toast({
+      title: "Recording started",
+      description: "Speak clearly and maintain eye contact with the camera.",
+    });
   };
   
   const stopRecording = () => {
@@ -205,6 +225,9 @@ const Interview = () => {
     setRecordedVideo(null);
     setIsRecording(false);
     
+    // Re-initialize camera for preview
+    initializeCamera();
+    
     // Get a new random question
     if (selectedMode && selectedMode.questions.length > 0) {
       const randomIndex = Math.floor(Math.random() * selectedMode.questions.length);
@@ -216,6 +239,13 @@ const Interview = () => {
     setSelectedMode(mode);
     resetInterview();
   };
+
+  // Initialize camera preview when component mounts
+  useEffect(() => {
+    if (!cameraActive && !recordedVideo) {
+      initializeCamera();
+    }
+  }, [cameraActive, recordedVideo]);
 
   return (
     <div className="container mx-auto py-8 px-4 animate-fade-in">
@@ -238,25 +268,33 @@ const Interview = () => {
             {/* Video Recording/Playback */}
             <Card className="overflow-hidden">
               <div className="aspect-video bg-black relative">
-                {isRecording || recordedVideo ? (
-                  <video 
-                    ref={videoRef} 
-                    src={recordedVideo || undefined} 
-                    className="w-full h-full object-cover"
-                    controls={!!recordedVideo}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-white">
-                    <Camera size={64} className="mb-4 text-virtualhr-purple" />
-                    <p className="text-lg">Ready to record your interview</p>
-                    <p className="text-sm text-gray-400 mt-2">Click "Start Recording" or upload a video</p>
-                  </div>
-                )}
+                <video 
+                  ref={videoRef} 
+                  src={recordedVideo || undefined} 
+                  className="w-full h-full object-cover"
+                  controls={!!recordedVideo}
+                  autoPlay={!recordedVideo}
+                  playsInline
+                  muted={!recordedVideo}
+                />
                 
                 {isRecording && (
                   <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full flex items-center">
                     <span className="animate-ping absolute h-3 w-3 rounded-full bg-red-400 opacity-75"></span>
                     <span className="relative">Recording</span>
+                  </div>
+                )}
+                
+                {!cameraActive && !recordedVideo && (
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                    <Button 
+                      variant="default"
+                      className="bg-virtualhr-purple hover:bg-virtualhr-purple-dark"
+                      onClick={initializeCamera}
+                    >
+                      <Camera className="mr-2 h-5 w-5" />
+                      Enable Camera
+                    </Button>
                   </div>
                 )}
               </div>
@@ -268,6 +306,7 @@ const Interview = () => {
                       variant="default"
                       className="bg-virtualhr-purple hover:bg-virtualhr-purple-dark"
                       onClick={startRecording}
+                      disabled={!cameraActive}
                     >
                       <Video className="mr-2 h-4 w-4" />
                       Start Recording

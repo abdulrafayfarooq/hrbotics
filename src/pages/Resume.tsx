@@ -1,9 +1,20 @@
+
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Upload, X, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { generatePDF, downloadReport, ResumeAnalysis } from '@/utils/pdfGenerator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import DocumentUploadForm from '@/components/DocumentUploadForm';
+
+type UploadType = 'resume' | 'document';
 
 const Resume = () => {
   const { toast } = useToast();
@@ -12,6 +23,9 @@ const Resume = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [uploadType, setUploadType] = useState<UploadType>('resume');
+  const [showDocumentForm, setShowDocumentForm] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resumeReportRef = useRef<HTMLDivElement>(null);
   
@@ -96,6 +110,21 @@ const Resume = () => {
     }
   };
   
+  const handleUploadTypeChange = (value: string) => {
+    setUploadType(value as UploadType);
+    
+    if (value === 'document') {
+      setShowDocumentForm(true);
+    } else {
+      setShowDocumentForm(false);
+    }
+  };
+  
+  const handleCancelDocumentUpload = () => {
+    setShowDocumentForm(false);
+    setUploadType('resume');
+  };
+  
   return (
     <div className="container mx-auto py-8 px-4 animate-fade-in">
       <div className="mb-8">
@@ -107,97 +136,119 @@ const Resume = () => {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Upload Resume</CardTitle>
+              <CardTitle>Upload Document</CardTitle>
               <CardDescription>
-                Upload your resume in PDF, DOC, or DOCX format
+                Select the type of document you want to upload
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {!file ? (
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="flex flex-col items-center">
-                    <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      PDF, DOC, or DOCX (Max 10MB)
-                    </p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={handleFileChange}
-                  />
-                </div>
-              ) : (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="bg-virtualhr-purple/10 p-2 rounded mr-3">
-                        <FileText className="h-6 w-6 text-virtualhr-purple" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{file.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
-                      </div>
+              <div className="mb-4">
+                <Select defaultValue="resume" onValueChange={handleUploadTypeChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resume">Resume</SelectItem>
+                    <SelectItem value="document">Other Documents</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {uploadType === 'resume' && !showDocumentForm ? (
+                !file ? (
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="flex flex-col items-center">
+                      <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        PDF, DOC, or DOCX (Max 10MB)
+                      </p>
                     </div>
-                    <button 
-                      onClick={handleRemoveFile}
-                      className="text-gray-400 hover:text-gray-600 p-1"
-                    >
-                      <X size={20} />
-                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleFileChange}
+                    />
                   </div>
-                  
-                  <div className="mt-4">
-                    {!uploading && !analyzing && !analyzed ? (
-                      <Button
-                        className="w-full bg-virtualhr-purple hover:bg-virtualhr-purple-dark"
-                        onClick={handleUpload}
-                      >
-                        Upload and Analyze
-                      </Button>
-                    ) : uploading ? (
-                      <Button disabled className="w-full">
-                        <div className="flex items-center">
-                          <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          Uploading...
+                ) : (
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="bg-virtualhr-purple/10 p-2 rounded mr-3">
+                          <FileText className="h-6 w-6 text-virtualhr-purple" />
                         </div>
-                      </Button>
-                    ) : analyzing ? (
-                      <Button disabled className="w-full">
-                        <div className="flex items-center">
-                          <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          Analyzing...
+                        <div>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{file.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {(file.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
                         </div>
-                      </Button>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 p-2 rounded">
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          <span className="text-sm font-medium">Analysis Complete</span>
-                        </div>
-                        <Button 
-                          variant="outline"
-                          className="flex items-center gap-2"
-                          onClick={handleDownloadAnalysis}
-                          disabled={generatingPdf}
-                        >
-                          <Download size={16} />
-                          {generatingPdf ? "Generating..." : "Download"}
-                        </Button>
                       </div>
-                    )}
+                      <button 
+                        onClick={handleRemoveFile}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    <div className="mt-4">
+                      {!uploading && !analyzing && !analyzed ? (
+                        <Button
+                          className="w-full bg-virtualhr-purple hover:bg-virtualhr-purple-dark"
+                          onClick={handleUpload}
+                        >
+                          Upload and Analyze
+                        </Button>
+                      ) : uploading ? (
+                        <Button disabled className="w-full">
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            Uploading...
+                          </div>
+                        </Button>
+                      ) : analyzing ? (
+                        <Button disabled className="w-full">
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            Analyzing...
+                          </div>
+                        </Button>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 p-2 rounded">
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            <span className="text-sm font-medium">Analysis Complete</span>
+                          </div>
+                          <Button 
+                            variant="outline"
+                            className="flex items-center gap-2"
+                            onClick={handleDownloadAnalysis}
+                            disabled={generatingPdf}
+                          >
+                            <Download size={16} />
+                            {generatingPdf ? "Generating..." : "Download"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )
+              ) : (
+                <DocumentUploadForm 
+                  onCancel={handleCancelDocumentUpload}
+                  onComplete={() => {
+                    setShowDocumentForm(false);
+                    setUploadType('resume');
+                  }}
+                />
               )}
             </CardContent>
           </Card>
